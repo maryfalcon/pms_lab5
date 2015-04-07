@@ -5,90 +5,70 @@
 #include <linux/init.h>
 
 
+static struct kobject *timer_kobj;
+static struct timer_list timer;
 
-static int foo;
-static int baz;
-static int bar;
+int period = 0;
 
-static ssize_t foo_show(struct kobject *kobj, struct j_attribute *attr, char *buf)
+static ssize_t timer_show(struct kobject *kobj, struct j_attribute *attr, char *buf)
 {
-        return sprintf(buf, "%d\n", foo);
+        return sprintf(buf, "%d\n", period);
 }
 
-static ssize_t foo_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
+static ssize_t timer_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
  {
-         sscanf(buf, "%du", &foo);
+         sscanf(buf, "%d", &period);
+         if (period == 0)
+			del_timer(&timer);
+		else
+			mod_timer(&timer, jiffies + msecs_to_jiffies(period));
          return count;
  }
  
- static struct kobj_attribute foo_attribute =
-         __ATTR(foo, 0666, foo_show, foo_store);
+ static struct kobj_attribute timer_attribute =
+         __ATTR(period, 0666, timer_show, timer_store);
  
 
- static ssize_t b_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
-{
-        int var;
-
-        if (strcmp(attr->attr.name, "baz") == 0)
-                var = baz;
-        else
-                var = bar;
-        return sprintf(buf, "%d\n", var);
-}
-
-static ssize_t b_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
-{
-        int var;
-
-        sscanf(buf, "%du", &var);
-        if (strcmp(attr->attr.name, "baz") == 0)
-                baz = var;
-        else
-                bar = var;
-        return count;
-}
-
-static struct kobj_attribute baz_attribute =
-        __ATTR(baz, 0666, b_show, b_store);
-static struct kobj_attribute bar_attribute =
-        __ATTR(bar, 0666, b_show, b_store);
-
-
-
 static struct attribute *attrs[] = {
-        &foo_attribute.attr,
-        &baz_attribute.attr,
-        &bar_attribute.attr,
+        &timer_attribute.attr,
         NULL,
 };
 
 
-static struct attribute_group attr_group = {
+static struct attribute_group timer_attr_group = {
         .attrs = attrs,
 };
 
-static struct kobject *example_kobj;
 
-static int __init example_init(void)
+void timer_sysfs_callback(unsigned long data)
+{
+	printk("Hello, world! (milliseconds = %ld)\n", jiffies_to_msecs(jiffies));
+	mod_timer(&timer, jiffies + msecs_to_jiffies(period));
+}
+
+static int __init timer_init(void)
 {
         int retval;
 
-         example_kobj = kobject_create_and_add("kobject_example", kernel_kobj);
-         if (!example_kobj)
+         timer_kobj = kobject_create_and_add("timer", kernel_kobj);
+         if (!timer_kobj)
                  return -ENOMEM;
  
-        retval = sysfs_create_group(example_kobj, &attr_group);
+        retval = sysfs_create_group(timer_kobj, &timer_attr_group);
         if (retval)
-                kobject_put(example_kobj);
+                kobject_put(timer_kobj);
+
+        setup_timer(&timer, timer_sysfs_callback, 0);
 
         return retval;
 }
 
-static void __exit example_exit(void)
+static void __exit timer_exit(void)
 {
-        kobject_put(example_kobj);
+		del_timer(&timer);
+        kobject_put(timer_kobj);
 }
 
-module_init(example_init);
-module_exit(example_exit);
+module_init(timer_init);
+module_exit(timer_exit);
 MODULE_LICENSE("GPL");
