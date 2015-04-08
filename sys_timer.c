@@ -10,19 +10,19 @@ static struct timer_list timer;
 
 int period = 0;
 
-static ssize_t timer_show(struct kobject *kobj, struct j_attribute *attr, char *buf)
+static ssize_t timer_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
 {
         return sprintf(buf, "%d\n", period);
 }
 
 static ssize_t timer_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
  {
-         sscanf(buf, "%d", &period);
-         if (period == 0)
-			del_timer(&timer);
-		else
-			mod_timer(&timer, jiffies + msecs_to_jiffies(period));
-         return count;
+        sscanf(buf, "%d", &period);
+        if (period == 0)
+		del_timer(&timer);
+	else
+		mod_timer(&timer, jiffies + msecs_to_jiffies(period));
+        return count;
  }
  
  static struct kobj_attribute timer_attribute =
@@ -42,7 +42,7 @@ static struct attribute_group timer_attr_group = {
 
 void timer_sysfs_callback(unsigned long data)
 {
-	printk("Hello, world! (milliseconds = %ld)\n", jiffies_to_msecs(jiffies));
+	printk("Hello, world! (milliseconds = %d)\n", jiffies_to_msecs(jiffies));
 	mod_timer(&timer, jiffies + msecs_to_jiffies(period));
 }
 
@@ -50,8 +50,8 @@ static int __init timer_init(void)
 {
         int retval;
 
-         timer_kobj = kobject_create_and_add("timer", kernel_kobj);
-         if (!timer_kobj)
+        timer_kobj = kobject_create_and_add("timer", kernel_kobj);
+        if (!timer_kobj)
                  return -ENOMEM;
  
         retval = sysfs_create_group(timer_kobj, &timer_attr_group);
@@ -65,7 +65,7 @@ static int __init timer_init(void)
 
 static void __exit timer_exit(void)
 {
-		del_timer(&timer);
+	del_timer(&timer);
         kobject_put(timer_kobj);
 }
 
